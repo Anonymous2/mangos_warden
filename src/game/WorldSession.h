@@ -263,7 +263,7 @@ class MANGOS_DLL_SPEC WorldSession
         void SetPlayer(Player *plr);
         uint8 Expansion() const { return m_expansion; }
 
-        void InitWarden(BigNumber *K);
+        void InitWarden(BigNumber *K, std::string os);
 
         /// Session in auth.queue currently
         void SetInQueue(bool state) { m_inQueue = state; }
