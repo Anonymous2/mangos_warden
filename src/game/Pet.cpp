@@ -283,8 +283,6 @@ bool Pet::LoadPetFromDB( Player* owner, uint32 petentry, uint32 petnumber, bool 
         SetPower(POWER_MANA, savedmana > GetMaxPower(POWER_MANA) ? GetMaxPower(POWER_MANA) : savedmana);
     }
 
-    UpdateWalkMode(owner);
-
     AIM_Initialize();
     map->Add((Creature*)this);
 
@@ -1321,13 +1319,7 @@ void Pet::_LoadAuras(uint32 timediff)
             }
 
             // prevent wrong values of remaincharges
-            uint32 procCharges = spellproto->procCharges;
-            if (procCharges)
-            {
-                if (remaincharges <= 0 || remaincharges > procCharges)
-                    remaincharges = procCharges;
-            }
-            else
+            if (spellproto->procCharges == 0)
                 remaincharges = 0;
 
             if (!spellproto->StackAmount)
