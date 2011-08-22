@@ -418,6 +418,8 @@ m_isPersistent(false), m_in_use(0), m_spellAuraHolder(holder)
         }
     }
 
+    damage *= holder->GetStackAmount();
+
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "Aura: construct Spellid : %u, Aura : %u Target : %d Damage : %d", spellproto->Id, spellproto->EffectApplyAuraName[eff], spellproto->EffectImplicitTargetA[eff], damage);
 
     SetModifier(AuraType(spellproto->EffectApplyAuraName[eff]), damage, spellproto->EffectAmplitude[eff], spellproto->EffectMiscValue[eff]);
@@ -860,26 +862,28 @@ bool Aura::CanProcFrom(SpellEntry const *spell, uint32 procFlag, uint32 EventPro
     // Check EffectClassMask
     ClassFamilyMask const& mask  = GetAuraSpellClassMask();
 
+    // allow proc for modifier auras with charges
+    if (IsCastEndProcModifierAura(GetSpellProto(), GetEffIndex(), spell))
+    {
+        if (GetHolder()->GetAuraCharges() > 0)
+        {
+            if (procEx != PROC_EX_CAST_END && EventProcEx == PROC_EX_NONE)
+                return false;
+        }
+    }
+    else if (EventProcEx == PROC_EX_NONE && procEx == PROC_EX_CAST_END)
+        return false;
+
     // if no class mask defined, or spell_proc_event has SpellFamilyName=0 - allow proc
     if (!useClassMask || !mask)
     {
         if (!(EventProcEx & PROC_EX_EX_TRIGGER_ALWAYS))
         {
-            // modifier aura procs by default are not active and only allowed with non zero charges
-            // procEx == PROC_EX_NORMAL_HIT only for real "on cast" cases
-            if (!active && procEx == PROC_EX_NORMAL_HIT && (procFlag & SPELL_CAST_TRIGGER_MASK))
-            {
-                if (GetHolder()->GetAuraCharges() > 0)
-                    return true;
-                else
-                    return false;
-            }
-
             // Check for extra req (if none) and hit/crit
             if (EventProcEx == PROC_EX_NONE)
             {
                 // No extra req, so can trigger only for active (damage/healing present) and hit/crit
-                if((procEx & (PROC_EX_NORMAL_HIT|PROC_EX_CRITICAL_HIT)) && active)
+                if(((procEx & (PROC_EX_NORMAL_HIT|PROC_EX_CRITICAL_HIT)) && active) || procEx == PROC_EX_CAST_END)
                     return true;
                 else
                     return false;
@@ -5928,7 +5932,21 @@ void Aura::HandleAuraModIncreaseEnergyPercent(bool apply, bool /*Real*/)
 
 void Aura::HandleAuraModIncreaseHealthPercent(bool apply, bool /*Real*/)
 {
-    GetTarget()->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_PCT, float(m_modifier.m_amount), apply);
+    Unit *target = GetTarget();
+
+    target->HandleStatModifier(UNIT_MOD_HEALTH, TOTAL_PCT, float(m_modifier.m_amount), apply);
+
+    // spell special cases when current health set to max value at apply
+    switch (GetId())
+    {
+        case 60430:                                         // Molten Fury
+        case 64193:                                         // Heartbreak
+        case 65737:                                         // Heartbreak
+            target->SetHealth(target->GetMaxHealth());
+            break;
+        default:
+            break;
+    }
 }
 
 void Aura::HandleAuraIncreaseBaseHealthPercent(bool apply, bool /*Real*/)
@@ -8379,9 +8397,9 @@ void Aura::HandleAuraModAllCritChance(bool apply, bool Real)
     ((Player*)target)->UpdateAllSpellCritChances();
 }
 
-void Aura::HandleAuraStopNaturalManaRegen(bool apply, bool real)
+void Aura::HandleAuraStopNaturalManaRegen(bool apply, bool Real)
 {
-    if (!real)
+    if (!Real)
         return;
 
     GetTarget()->ApplyModFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_REGENERATE_POWER, !apply && !GetTarget()->IsUnderLastManaUseEffect());
