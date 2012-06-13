@@ -227,7 +227,7 @@ void WardenMac::HandleData(ByteBuffer &buff)
 
     Sha1Hash sha1;
     sha1.UpdateData(str);
-    uint32 magic = 0xFEEDFACE;                              // unsure
+    uint32 magic = 0xFEEDFACE;                              // _dyld_get_image_header(0)
     sha1.UpdateData((uint8*)&magic, 4);
     sha1.Finalize();
 
