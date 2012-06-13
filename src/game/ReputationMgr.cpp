@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,12 +124,12 @@ void ReputationMgr::SendState(FactionState const* faction)
 {
     uint32 count = 1;
 
-    WorldPacket data(SMSG_SET_FACTION_STANDING, (16));  // last check 2.4.0
-    data << (float) 0;                                  // unk 2.4.0
-    data << (uint8) 0;                                  // wotlk 8634
+    WorldPacket data(SMSG_SET_FACTION_STANDING, (16));      // last check 2.4.0
+    data << (float) 0;                                      // unk 2.4.0
+    data << (uint8) 0;                                      // wotlk 8634
 
     size_t p_count = data.wpos();
-    data << (uint32) count;                             // placeholder
+    data << (uint32) count;                                 // placeholder
 
     data << (uint32) faction->ReputationListID;
     data << (uint32) faction->Standing;
@@ -486,11 +486,17 @@ void ReputationMgr::LoadFromDB(QueryResult *result)
                 }
 
                 // set atWar for hostile
-                if(GetRank(factionEntry) <= REP_HOSTILE)
-                    SetAtWar(faction,true);
+                ForcedReactions::const_iterator forceItr = m_forcedReactions.find(factionEntry->ID);
+                if (forceItr != m_forcedReactions.end())
+                {
+                    if (forceItr->second <= REP_HOSTILE)
+                        SetAtWar(faction, true);
+                }
+                else if (GetRank(factionEntry) <= REP_HOSTILE)
+                    SetAtWar(faction, true);
 
                 // reset changed flag if values similar to saved in DB
-                if(faction->Flags==dbFactionFlags)
+                if (faction->Flags == dbFactionFlags)
                 {
                     faction->needSend = false;
                     faction->needSave = false;

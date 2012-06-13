@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -259,8 +259,9 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             WorldPacket data;
             ChatHandler::FillMessageData(&data, this, type, lang, msg.c_str());
             group->BroadcastPacket(&data, false, group->GetMemberGroup(GetPlayer()->GetObjectGuid()));
-        } break;
 
+            break;
+        }
         case CHAT_MSG_GUILD:
         {
             std::string msg;
@@ -281,8 +282,9 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if (GetPlayer()->GetGuildId())
                 if (Guild* guild = sGuildMgr.GetGuildById(GetPlayer()->GetGuildId()))
                     guild->BroadcastToGuild(this, msg, lang == LANG_ADDON ? LANG_ADDON : LANG_UNIVERSAL);
-        } break;
 
+            break;
+        }
         case CHAT_MSG_OFFICER:
         {
             std::string msg;
@@ -303,8 +305,9 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
             if (GetPlayer()->GetGuildId())
                 if (Guild* guild = sGuildMgr.GetGuildById(GetPlayer()->GetGuildId()))
                     guild->BroadcastToOfficers(this, msg, lang == LANG_ADDON ? LANG_ADDON : LANG_UNIVERSAL);
-        } break;
 
+            break;
+        }
         case CHAT_MSG_RAID:
         {
             std::string msg;
@@ -454,41 +457,48 @@ void WorldSession::HandleMessagechatOpcode( WorldPacket & recv_data )
 
             if (!_player->isInCombat())
             {
-                if (!msg.empty() || !_player->isAFK())
+                if (_player->isAFK())                       // Already AFK
                 {
                     if (msg.empty())
-                        _player->afkMsg = GetMangosString(LANG_PLAYER_AFK_DEFAULT);
+                        _player->ToggleAFK();               // Remove AFK
                     else
-                        _player->afkMsg = msg;
+                        _player->autoReplyMsg = msg;        // Update message
                 }
-                if (msg.empty() || !_player->isAFK())
+                else                                        // New AFK mode
                 {
-                    _player->ToggleAFK();
-                    if (_player->isAFK() && _player->isDND())
+                    _player->autoReplyMsg = msg.empty() ? GetMangosString(LANG_PLAYER_AFK_DEFAULT) : msg;
+
+                    if (_player->isDND())
                         _player->ToggleDND();
+
+                    _player->ToggleAFK();
                 }
             }
-        } break;
-
+            break;
+        }
         case CHAT_MSG_DND:
         {
             std::string msg;
             recv_data >> msg;
 
-            if (!msg.empty() || !_player->isDND())
+            if (_player->isDND())                           // Already DND
             {
                 if (msg.empty())
-                    _player->dndMsg = GetMangosString(LANG_PLAYER_DND_DEFAULT);
+                    _player->ToggleDND();                   // Remove DND
                 else
-                    _player->dndMsg = msg;
+                    _player->autoReplyMsg = msg;            // Update message
             }
-            if (msg.empty() || !_player->isDND())
+            else                                            // New DND mode
             {
-                _player->ToggleDND();
-                if (_player->isDND() && _player->isAFK())
+                _player->autoReplyMsg = msg.empty() ? GetMangosString(LANG_PLAYER_DND_DEFAULT) : msg;
+
+                if (_player->isAFK())
                     _player->ToggleAFK();
+
+                _player->ToggleDND();
             }
-        } break;
+            break;
+        }
 
         default:
             sLog.outError("CHAT: unknown message type %u, lang: %u", type, lang);

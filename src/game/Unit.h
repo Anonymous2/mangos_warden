@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,6 +157,9 @@ enum UnitStandFlags
     UNIT_STAND_FLAGS_UNK5         = 0x10,
     UNIT_STAND_FLAGS_ALL          = 0xFF
 };
+
+// byte flags value (UNIT_FIELD_BYTES_1,2)
+// This corresponds to free talent points (pet case)
 
 // byte flags value (UNIT_FIELD_BYTES_1,3)
 enum UnitBytes1_Flags
@@ -376,7 +379,6 @@ enum DeathState
     CORPSE         = 2,                                     // corpse state, for player this also meaning that player not leave corpse
     DEAD           = 3,                                     // for creature despawned state (corpse despawned), for player CORPSE/DEAD not clear way switches (FIXME), and use m_deathtimer > 0 check for real corpse state
     JUST_ALIVED    = 4,                                     // temporary state at resurrection, for creature auto converted to ALIVE, for player at next update call
-    CORPSE_FALLING = 5                                      // corpse state in case when corpse still falling to ground
 };
 
 // internal state flags for some auras and movement generators, other.
@@ -408,6 +410,7 @@ enum UnitState
     UNIT_STAT_FOLLOW_MOVE     = 0x00010000,
     UNIT_STAT_FLEEING         = 0x00020000,                     // FleeMovementGenerator/TimedFleeingMovementGenerator active/onstack
     UNIT_STAT_FLEEING_MOVE    = 0x00040000,
+    UNIT_STAT_IGNORE_PATHFINDING    = 0x00080000,               // do not use pathfinding in any MovementGenerator
 
     // masks (only for check)
 
@@ -661,58 +664,6 @@ enum MovementFlags2
     MOVEFLAG2_INTERP_MASK       = MOVEFLAG2_INTERP_MOVEMENT | MOVEFLAG2_INTERP_TURNING | MOVEFLAG2_INTERP_PITCHING
 };
 
-enum SplineFlags
-{
-    SPLINEFLAG_NONE         = 0x00000000,
-    SPLINEFLAG_FORWARD      = 0x00000001,
-    SPLINEFLAG_BACKWARD     = 0x00000002,
-    SPLINEFLAG_STRAFE_LEFT  = 0x00000004,
-    SPLINEFLAG_STRAFE_RIGHT = 0x00000008,
-    SPLINEFLAG_LEFT         = 0x00000010,
-    SPLINEFLAG_RIGHT        = 0x00000020,
-    SPLINEFLAG_PITCH_UP     = 0x00000040,
-    SPLINEFLAG_PITCH_DOWN   = 0x00000080,
-    SPLINEFLAG_DONE         = 0x00000100,
-    SPLINEFLAG_FALLING      = 0x00000200,
-    SPLINEFLAG_NO_SPLINE    = 0x00000400,
-    SPLINEFLAG_TRAJECTORY   = 0x00000800,
-    SPLINEFLAG_WALKMODE     = 0x00001000,
-    SPLINEFLAG_FLYING       = 0x00002000,
-    SPLINEFLAG_KNOCKBACK    = 0x00004000,
-    SPLINEFLAG_FINALPOINT   = 0x00008000,
-    SPLINEFLAG_FINALTARGET  = 0x00010000,
-    SPLINEFLAG_FINALFACING  = 0x00020000,
-    SPLINEFLAG_CATMULLROM   = 0x00040000,
-    SPLINEFLAG_UNKNOWN1     = 0x00080000,
-    SPLINEFLAG_UNKNOWN2     = 0x00100000,
-    SPLINEFLAG_UNKNOWN3     = 0x00200000,
-    SPLINEFLAG_UNKNOWN4     = 0x00400000,
-    SPLINEFLAG_UNKNOWN5     = 0x00800000,
-    SPLINEFLAG_UNKNOWN6     = 0x01000000,
-    SPLINEFLAG_UNKNOWN7     = 0x02000000,
-    SPLINEFLAG_UNKNOWN8     = 0x04000000,
-    SPLINEFLAG_UNKNOWN9     = 0x08000000,
-    SPLINEFLAG_UNKNOWN10    = 0x10000000,
-    SPLINEFLAG_UNKNOWN11    = 0x20000000,
-    SPLINEFLAG_UNKNOWN12    = 0x40000000
-};
-
-enum SplineMode
-{
-    SPLINEMODE_LINEAR       = 0,
-    SPLINEMODE_CATMULLROM   = 1,
-    SPLINEMODE_BEZIER3      = 2
-};
-
-enum SplineType
-{
-    SPLINETYPE_NORMAL       = 0,
-    SPLINETYPE_STOP         = 1,
-    SPLINETYPE_FACINGSPOT   = 2,
-    SPLINETYPE_FACINGTARGET = 3,
-    SPLINETYPE_FACINGANGLE  = 4
-};
-
 class MovementInfo
 {
     public:
@@ -864,7 +815,7 @@ struct CalcDamageInfo
     uint32 blocked_amount;
     uint32 HitInfo;
     uint32 TargetState;
-// Helper
+    // Helper
     WeaponAttackType attackType; //
     uint32 procAttacker;
     uint32 procVictim;
@@ -1138,7 +1089,6 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         typedef std::map<uint8, uint32> VisibleAuraMap;
         typedef std::map<SpellEntry const*, ObjectGuid> SingleCastSpellTargetMap;
 
-
         virtual ~Unit ( );
 
         void AddToWorld();
@@ -1164,6 +1114,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         uint32 getAttackTimer(WeaponAttackType type) const { return m_attackTimer[type]; }
         bool isAttackReady(WeaponAttackType type = BASE_ATTACK) const { return m_attackTimer[type] == 0; }
         bool haveOffhandWeapon() const;
+        bool UpdateMeleeAttackingState();
         bool CanUseEquippedWeapon(WeaponAttackType attackType) const
         {
             if (IsInFeralForm())
@@ -1204,6 +1155,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
             return NULL;
         }
         bool Attack(Unit *victim, bool meleeAttack);
+        void AttackedBy(Unit* attacker);
         void CastStop(uint32 except_spellid = 0);
         bool AttackStop(bool targetSwitch = false);
         void RemoveAllAttackers();
@@ -1421,6 +1373,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         {
             return m_spellAuraHolders.find(spellId) != m_spellAuraHolders.end();
         }
+        bool HasAuraOfDifficulty(uint32 spellId) const;
 
         bool virtual HasSpell(uint32 /*spellID*/) const { return false; }
 
@@ -1461,7 +1414,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void SendSpellMiss(Unit *target, uint32 spellID, SpellMissInfo missInfo);
 
         void NearTeleportTo(float x, float y, float z, float orientation, bool casting = false);
-        void MonsterMoveWithSpeed(float x, float y, float z, float speed);
+        void MonsterMoveWithSpeed(float x, float y, float z, float speed, bool generatePath = false, bool forceDestination = false);
         // recommend use MonsterMove/MonsterMoveWithSpeed for most case that correctly work with movegens
         // if used additional args in ... part then floats must explicitly casted to double
         void SendHeartBeat();
@@ -1476,8 +1429,6 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void SendThreatClear();
         void SendThreatRemove(HostileReference* pHostileReference);
         void SendThreatUpdate();
-
-        virtual void MoveOutOfRange(Player &) {  };
 
         bool isAlive() const { return (m_deathState == ALIVE); };
         bool isDead() const { return ( m_deathState == DEAD || m_deathState == CORPSE ); };
@@ -1643,7 +1594,6 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         bool CheckAndIncreaseCastCounter();
         void DecreaseCastCounter() { if (m_castCounter) --m_castCounter; }
 
-        uint32 m_addDmgOnce;
         ObjectGuid m_ObjectSlotGuid[4];
         uint32 m_detectInvisibilityMask;
         uint32 m_invisibilityMask;
@@ -1723,6 +1673,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void AddThreat(Unit* pVictim, float threat = 0.0f, bool crit = false, SpellSchoolMask schoolMask = SPELL_SCHOOL_MASK_NONE, SpellEntry const *threatSpell = NULL);
         float ApplyTotalThreatModifier(float threat, SpellSchoolMask schoolMask = SPELL_SCHOOL_MASK_NORMAL);
         void DeleteThreatList();
+        bool IsSecondChoiceTarget(Unit* pTarget, bool checkThreatArea);
         bool SelectHostileTarget();
         void TauntApply(Unit* pVictim);
         void TauntFadeOut(Unit *taunter);
@@ -1800,6 +1751,7 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
 
         GameObject* GetGameObject(uint32 spellId) const;
         void AddGameObject(GameObject* gameObj);
+        void AddWildGameObject(GameObject* gameObj);
         void RemoveGameObject(GameObject* gameObj, bool del);
         void RemoveGameObject(uint32 spellid, bool del);
         void RemoveAllGameObjects();
@@ -1893,7 +1845,6 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         float GetSpeedRate( UnitMoveType mtype ) const { return m_speed_rate[mtype]; }
         void SetSpeedRate(UnitMoveType mtype, float rate, bool forced = false);
 
-        void SetHover(bool on);
         bool isHover() const { return HasAuraType(SPELL_AURA_HOVER); }
 
         void KnockBackFrom(Unit* target, float horizontalSpeed, float verticalSpeed);
@@ -1957,6 +1908,8 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         void _SetAINotifyScheduled(bool on) { m_AINotifyScheduled = on;}       // only for call from RelocationNotifyEvent code
         void OnRelocated();
 
+        bool IsLinkingEventTrigger() { return m_isCreatureLinkingTrigger; }
+
     protected:
         explicit Unit ();
 
@@ -1984,6 +1937,8 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
 
         typedef std::list<GameObject*> GameObjectList;
         GameObjectList m_gameObj;
+        typedef std::map<uint32, ObjectGuid> WildGameObjectMap;
+        WildGameObjectMap m_wildGameObjs;
         bool m_isSorted;
         uint32 m_transform;
 
@@ -2008,6 +1963,9 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
 
         VehicleInfo* m_vehicleInfo;
         void DisableSpline();
+        bool m_isCreatureLinkingTrigger;
+        bool m_isSpawningLinked;
+
     private:
         void CleanupDeletedAuras();
         void UpdateSplineMovement(uint32 t_diff);

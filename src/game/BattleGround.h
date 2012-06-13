@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -104,7 +104,6 @@ enum BattleGroundSpells
 enum BattleGroundTimeIntervals
 {
     RESURRECTION_INTERVAL           = 30000,                // ms
-    //REMIND_INTERVAL                 = 10000,                // ms
     INVITATION_REMIND_TIME          = 20000,                // ms
     INVITE_ACCEPT_WAIT_TIME         = 40000,                // ms
     TIME_TO_AUTOREMOVE              = 120000,               // ms
@@ -380,6 +379,8 @@ class BattleGround
         uint32 GetPlayerScoresSize() const { return m_PlayerScores.size(); }
 
         void StartBattleGround();
+
+        void StartTimedAchievement(AchievementCriteriaTypes type, uint32 entry);
 
         /* Location */
         void SetMapId(uint32 MapID) { m_MapId = MapID; }

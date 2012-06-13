@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -288,7 +288,7 @@ bool WorldSession::Update(PacketFilter& updater)
                     packet->GetOpcode(), GetRemoteAddress().c_str(), GetAccountId());
             if (sLog.HasLogLevelOrHigher(LOG_LVL_DEBUG))
             {
-                sLog.outDebug("Dumping error causing packet:");
+                DEBUG_LOG("Dumping error causing packet:");
                 packet->hexlike();
             }
 
@@ -941,9 +941,9 @@ void WorldSession::SendRedirectClient(std::string& ip, uint16 port)
     pkt << uint32(ip2);                                     // inet_addr(ipstr)
     pkt << uint16(port);                                    // port
 
-    pkt << uint32(GetLatency());                            // latency-related?
+    pkt << uint32(0);                                       // unknown
 
-    HMACSHA1 sha1(20, m_Socket->GetSessionKey().AsByteArray());
+    HMACSHA1 sha1(40, m_Socket->GetSessionKey().AsByteArray());
     sha1.UpdateData((uint8*)&ip2, 4);
     sha1.UpdateData((uint8*)&port, 2);
     sha1.Finalize();

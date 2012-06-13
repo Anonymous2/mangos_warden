@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 void SQLStorage::EraseEntry(uint32 id)
 {
     uint32 offset = 0;
-    for(uint32 x = 0; x < iNumFields; ++x)
+    for (uint32 x = 0; x < oNumFields; ++x)
     {
         switch(dst_format[x])
         {
@@ -43,8 +43,13 @@ void SQLStorage::EraseEntry(uint32 id)
                 break;
             }
             case FT_NA:
+                offset += sizeof(uint32); break;
             case FT_NA_BYTE:
-                break;
+                offset += sizeof(char);   break;
+            case FT_NA_FLOAT:
+                offset += sizeof(float);  break;
+            case FT_NA_POINTER:
+                offset += sizeof(char*);  break;
             case FT_IND:
             case FT_SORT:
                 assert(false && "SQL storage not have sort field types");
@@ -61,7 +66,7 @@ void SQLStorage::EraseEntry(uint32 id)
 void SQLStorage::Free ()
 {
     uint32 offset = 0;
-    for(uint32 x = 0; x < iNumFields; ++x)
+    for (uint32 x = 0; x < oNumFields; ++x)
     {
         switch(dst_format[x])
         {
@@ -83,8 +88,13 @@ void SQLStorage::Free ()
                 break;
             }
             case FT_NA:
+                offset += sizeof(uint32); break;
             case FT_NA_BYTE:
-                break;
+                offset += sizeof(char);   break;
+            case FT_NA_FLOAT:
+                offset += sizeof(float);  break;
+            case FT_NA_POINTER:
+                offset += sizeof(char*);  break;
             case FT_IND:
             case FT_SORT:
                 assert(false && "SQL storage not have sort field types");

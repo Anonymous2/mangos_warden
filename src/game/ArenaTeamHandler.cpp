@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2012 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ void WorldSession::HandleArenaTeamInviteOpcode(WorldPacket & recv_data)
 
 void WorldSession::HandleArenaTeamAcceptOpcode(WorldPacket & /*recv_data*/)
 {
-    DEBUG_LOG("CMSG_ARENA_TEAM_ACCEPT");                // empty opcode
+    DEBUG_LOG("CMSG_ARENA_TEAM_ACCEPT");                    // empty opcode
 
     ArenaTeam *at = sObjectMgr.GetArenaTeamById(_player->GetArenaTeamIdInvited());
     if (!at)
@@ -186,7 +186,7 @@ void WorldSession::HandleArenaTeamAcceptOpcode(WorldPacket & /*recv_data*/)
 
 void WorldSession::HandleArenaTeamDeclineOpcode(WorldPacket & /*recv_data*/)
 {
-    DEBUG_LOG("CMSG_ARENA_TEAM_DECLINE");               // empty opcode
+    DEBUG_LOG("CMSG_ARENA_TEAM_DECLINE");                   // empty opcode
 
     _player->SetArenaTeamIdInvited(0);                      // no more invited
 }
